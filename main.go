@@ -84,7 +84,6 @@ func main() {
 	case JPEG:
 		err := optimizeJpg(outputWriter, image, 85)
 		if err != nil {
-
 			exitWithError(err)
 		}
 	case PNG:

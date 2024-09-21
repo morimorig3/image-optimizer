@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -26,16 +28,14 @@ func main() {
 	args := flag.Args()
 	// 引数チェック
 	if len(args) < 1 {
-		log.Println("ファイル名を指定してください")
-		os.Exit(1)
+		exitWithError(errors.New("ファイル名を指定してください"))
 	}
 	inputFileName := args[0]
 	TARGET_EXTENSIONS := []string{JPG, JPEG, PNG}
 	ext := filepath.Ext(inputFileName)
 	// 拡張子有無チェック
 	if ext == "" || ext == "." {
-		log.Println("ファイル名に拡張子が存在しません")
-		os.Exit(1)
+		exitWithError(errors.New("ファイル名に拡張子が存在しません"))
 	}
 	// ファイル名拡張子チェック
 	isTargetExt := slices.ContainsFunc(TARGET_EXTENSIONS, func(s string) bool {
@@ -43,41 +43,35 @@ func main() {
 		return strings.EqualFold(withOutDot, s)
 	})
 	if !isTargetExt {
-		log.Printf("拡張子 %s は対応しておりません\n", ext)
-		os.Exit(1)
+		exitWithError(errors.New(fmt.Sprintf("拡張子 %s は対応しておりません\n", ext)))
 	}
 
 	// ファイルを開く
 	f, err := os.Open(inputFileName)
 	if err != nil {
-		log.Println("ファイルを開くことができませんでした")
-		os.Exit(1)
+		exitWithError(err)
 	}
 	defer f.Close()
 
 	// mimeType取得
 	mt, err := getMimeType(f)
 	if err != nil {
-		log.Println("ファイルを開くことができませんでした")
-		os.Exit(1)
+		exitWithError(err)
 	}
 	if mt != "image/jpeg" && mt != "image/png" {
-		log.Println("jpgまたはpngファイルを指定してください")
-		os.Exit(1)
+		exitWithError(errors.New("jpgまたはpngファイルを指定してください"))
 	}
 
 	f, _ = os.Open(inputFileName)
 	image, format, err := image.Decode(f)
 	if err != nil {
-		log.Println("ファイルを開くことができませんでした")
-		os.Exit(1)
+		exitWithError(err)
 	}
 
 	outputFileName := createOutputFileName(inputFileName, "_optimized")
 	outputWriter, err := os.Create(outputFileName)
 	if err != nil {
-		log.Println("予期せぬエラーが発生しました")
-		os.Exit(1)
+		exitWithError(err)
 	}
 	defer outputWriter.Close()
 
@@ -85,24 +79,21 @@ func main() {
 	case JPG:
 		err := optimizeJpg(outputWriter, image, 85)
 		if err != nil {
-			log.Println("予期せぬエラーが発生しました")
-			os.Exit(1)
+			exitWithError(err)
 		}
 	case JPEG:
 		err := optimizeJpg(outputWriter, image, 85)
 		if err != nil {
-			log.Println("予期せぬエラーが発生しました")
-			os.Exit(1)
+
+			exitWithError(err)
 		}
 	case PNG:
 		err := optimizePng(outputWriter, image, png.BestCompression)
 		if err != nil {
-			log.Println("予期せぬエラーが発生しました")
-			os.Exit(1)
+			exitWithError(err)
 		}
 	default:
-		log.Println("予期せぬエラーが発生しました")
-		os.Exit(1)
+		exitWithError(errors.New("予期せぬエラーが発生しました"))
 	}
 	log.Println(format, "画像の圧縮が完了しました")
 }
@@ -141,4 +132,9 @@ func optimizePng(w io.Writer, m image.Image, q png.CompressionLevel) error {
 func createOutputFileName(s string, suffix string) string {
 	fileName := filepath.Base(s[:len(s)-len(filepath.Ext(s))])
 	return fileName + suffix + filepath.Ext(s)
+}
+
+func exitWithError(err error) {
+	log.Println(err)
+	os.Exit(1)
 }
